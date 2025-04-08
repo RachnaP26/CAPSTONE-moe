@@ -316,30 +316,21 @@ def train(
 
         outputs = model.forward(input_args)
 
-        #modification
-
-        # Step 1: Extract embeddings and group labels
+        # Unsupervised contrastive embedding logic
         embeddings = []
         labels = []
 
         for output in outputs:
-            # Assume 'expert_output' = embedding, 'expert_id' = label (adapt as per model structure)
-            embeddings.append(output.expert_output)  # replace with actual embedding attr
-            labels.append(output.expert_id)          # replace with actual expert ID attr
+            embeddings.append(output.hidden_states)  # adjust if needed
+            labels.append(output.expert_ids)         # adjust if needed
 
-        # Stack tensors
         embeddings = torch.cat(embeddings, dim=0)
         labels = torch.cat(labels, dim=0)
 
-        # Step 2: Compute contrastive loss
         contrastive_loss = multi_positive_contrastive_loss(embeddings, labels)
 
-        # Step 3: Add to total loss (you can weight it if needed)
         total_loss = _compute_loss(config_dict, outputs)
-        total_loss += contrastive_loss  # optionally: 0.1 * contrastive_loss
-
-
-        total_loss = _compute_loss(config_dict, outputs)
+        total_loss += contrastive_loss
 
         total_loss.backward()
 
