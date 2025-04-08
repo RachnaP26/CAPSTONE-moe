@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 import torch
 from transformers import get_scheduler
 
-from .common import LLMModelOutput, Prompt
+from moe_peft.common import LLMModelOutput
 from .dispatcher import Dispatcher, DispatcherConfig, TrainTask
 from .evaluator import EvaluateConfig, evaluate
 from .executors import no_cache
@@ -16,6 +16,9 @@ from .model import LLMModel
 from .prompter import Prompter
 from .tasks import BasicTask, CasualTask, MultiTask, task_dict
 from .tokenizer import Tokenizer
+from pytorch_metric_learning.losses import ContrastiveLoss
+from moe_peft.losses.contrastive_loss import multi_positive_contrastive_loss
+
 
 
 @dataclass
@@ -312,6 +315,29 @@ def train(
         input_args = dispatcher.get_train_data()
 
         outputs = model.forward(input_args)
+
+        #modification
+
+        # Step 1: Extract embeddings and group labels
+        embeddings = []
+        labels = []
+
+        for output in outputs:
+            # Assume 'expert_output' = embedding, 'expert_id' = label (adapt as per model structure)
+            embeddings.append(output.expert_output)  # replace with actual embedding attr
+            labels.append(output.expert_id)          # replace with actual expert ID attr
+
+        # Stack tensors
+        embeddings = torch.cat(embeddings, dim=0)
+        labels = torch.cat(labels, dim=0)
+
+        # Step 2: Compute contrastive loss
+        contrastive_loss = multi_positive_contrastive_loss(embeddings, labels)
+
+        # Step 3: Add to total loss (you can weight it if needed)
+        total_loss = _compute_loss(config_dict, outputs)
+        total_loss += contrastive_loss  # optionally: 0.1 * contrastive_loss
+
 
         total_loss = _compute_loss(config_dict, outputs)
 
